@@ -1,6 +1,41 @@
+// require("dotenv").config();
+// const express = require("express");
+// const http = require("http");
+// const cors = require("cors");
+// const connectDB = require("./config/db");
+
+// // Connect MongoDB
+// connectDB();
+
+// const app = express();
+// const server = http.createServer(app);
+
+// // Middleware
+// app.use(cors());
+// app.use(express.json());
+
+// // Routes
+// app.get("/", (req, res) => {
+//   res.send("🌐 Orbit Connect API is running...");
+// });
+
+// const appRoutes = require("./routes/appRoutes");
+// app.use("/api", appRoutes);
+
+// // Initialize Socket.IO
+// require("./sockets")(server); // Loads and runs sockets/index.js
+
+// // Start server
+// const PORT = process.env.PORT || 5000;
+// server.listen(PORT, () =>
+//   console.log(`🚀 Server running at http://localhost:${PORT}`)
+// );
+
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
+const https = require("https");
+const fs = require("fs");
 const cors = require("cors");
 const connectDB = require("./config/db");
 
@@ -8,7 +43,6 @@ const connectDB = require("./config/db");
 connectDB();
 
 const app = express();
-const server = http.createServer(app);
 
 // Middleware
 app.use(cors());
@@ -22,11 +56,29 @@ app.get("/", (req, res) => {
 const appRoutes = require("./routes/appRoutes");
 app.use("/api", appRoutes);
 
-// Initialize Socket.IO
-require("./sockets")(server); // Loads and runs sockets/index.js
+// Use a variable to hold the server instance (HTTP or HTTPS)
+let server;
 
-// Start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () =>
-  console.log(`🚀 Server running at http://localhost:${PORT}`)
-);
+if (process.env.DEPLOY_ENV === "prod") {
+  // Read SSL certificate and key
+  const options = {
+    cert: fs.readFileSync(process.env.SSL_CRT_PATH),
+    key: fs.readFileSync(process.env.SSL_KEY_PATH),
+  };
+
+  server = https.createServer(options, app);
+
+  server.listen(process.env.PORT || 443, () => {
+    console.log(`🚀 HTTPS Server running on port ${process.env.PORT || 443}`);
+  });
+} else {
+  // Default to HTTP server for local/dev
+  server = http.createServer(app);
+
+  server.listen(process.env.PORT || 5000, () => {
+    console.log(`🚀 HTTP Server running on port ${process.env.PORT || 5000}`);
+  });
+}
+
+// Initialize Socket.IO with the server (either http or https)
+require("./sockets")(server);
